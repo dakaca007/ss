@@ -61,6 +61,22 @@ if (isset($_GET['action'])) {
         .close { color:#aaa; float:right; font-size:28px; font-weight:bold; cursor:pointer; }
         .close:hover, .close:focus { color:#fff; text-decoration:none; cursor:pointer; }
         #gomokuBoard { margin:20px 0; }
+        /* 炸金花入口按钮升级 */
+        .game-btn-zjh{background:linear-gradient(90deg,#ffb347,#ffcc33);color:#fff;font-weight:bold;border-radius:8px;padding:10px 24px;margin:8px 0;box-shadow:0 2px 8px #ffb34788;border:none;transition:.2s;}
+        .game-btn-zjh:hover{background:#ffcc33;color:#b85c00;transform:scale(1.05);}
+        #zjhModal .modal-content{background:linear-gradient(135deg,#fffbe6 60%,#ffe0b2 100%);box-shadow:0 0 24px #ffb34788;border-radius:16px;}
+        /* 转盘入口按钮升级 */
+        .game-btn-dial{background:linear-gradient(90deg,#42a5f5,#7e57c2);color:#fff;font-weight:bold;border-radius:8px;padding:10px 24px;margin:8px 0;box-shadow:0 2px 8px #42a5f588;border:none;transition:.2s;}
+        .game-btn-dial:hover{background:#7e57c2;color:#fffde7;transform:scale(1.05);}
+        #dialModal .modal-content{background:linear-gradient(135deg,#e3f2fd 60%,#ede7f6 100%);box-shadow:0 0 24px #42a5f588;border-radius:16px;}
+        /* 21点入口按钮升级 */
+        .game-btn-bj{background:linear-gradient(90deg,#43a047,#1de9b6);color:#fff;font-weight:bold;border-radius:8px;padding:10px 24px;margin:8px 0;box-shadow:0 2px 8px #43a04788;border:none;transition:.2s;}
+        .game-btn-bj:hover{background:#1de9b6;color:#263238;transform:scale(1.05);}
+        #bjModal .modal-content{background:linear-gradient(135deg,#e0f2f1 60%,#b2dfdb 100%);box-shadow:0 0 24px #43a04788;border-radius:16px;}
+        /* 老虎机入口按钮升级 */
+        .game-btn-slot{background:linear-gradient(90deg,#ff7043,#ffd600);color:#fff;font-weight:bold;border-radius:8px;padding:10px 24px;margin:8px 0;box-shadow:0 2px 8px #ff704388;border:none;transition:.2s;}
+        .game-btn-slot:hover{background:#ffd600;color:#bf360c;transform:scale(1.05);}
+        #slotModal .modal-content{background:linear-gradient(135deg,#fffde7 60%,#ffe082 100%);box-shadow:0 0 24px #ff704388;border-radius:16px;}
     </style>
 </head>
 <body>
@@ -128,19 +144,79 @@ if (isset($_GET['action'])) {
         <div class="game-buttons" style="text-align:center; margin:20px 0;">
             <!-- ...已有游戏按钮... -->
             <button class='back-btn' onclick="showGomoku()">五子棋</button>
+            <!-- 炸金花入口按钮升级 -->
+            <button class="game-btn-zjh" onclick="showZjh()">炸金花 <span style="font-size:18px;">🔥</span></button>
+            <!-- 转盘入口按钮升级 -->
+            <button class="game-btn-dial" onclick="showDial()">转盘 <span style="font-size:18px;">🎡</span></button>
+            <!-- 21点入口按钮升级 -->
+            <button class="game-btn-bj" onclick="showBj()">21点 <span style="font-size:18px;">🃏</span></button>
+            <!-- 老虎机入口按钮升级 -->
+            <button class="game-btn-slot" onclick="showSlot()">老虎机 <span style="font-size:18px;">🎰</span></button>
         </div>
-        <!-- 五子棋弹窗 -->
+        <!-- 五子棋弹窗升级版 -->
         <div id="gomokuModal" class="modal" style="display:none;">
           <div class="modal-content">
             <span class="close" onclick="closeGomoku()">&times;</span>
-            <h2>五子棋</h2>
+            <h2>五子棋 <span id="gomokuThemeBtn" style="cursor:pointer;">🎨</span></h2>
             <div id="gomokuBoard"></div>
             <div id="gomokuStatus"></div>
             <button onclick="createGomokuRoom()">创建房间</button>
             <input id="gomokuRoomId" placeholder="房间号"><button onclick="joinGomokuRoom()">加入房间</button>
-            <div id="gomokuControls" style="display:none;"></div>
+            <div id="gomokuControls" style="display:none;">
+              <button onclick="gomokuUndo()">悔棋</button>
+              <button onclick="gomokuGiveup()">认输</button>
+              <button onclick="closeGomoku()">退出</button>
+            </div>
           </div>
         </div>
+        <!-- 炸金花弹窗升级版 -->
+        <div id="zjhModal" class="modal" style="display:none;">
+          <div class="modal-content">
+            <span class="close" onclick="closeZjh()">&times;</span>
+            <h2>炸金花 <span id="zjhThemeBtn" style="cursor:pointer;">🎨</span></h2>
+            <div id="zjhTable"></div>
+            <div id="zjhStatus"></div>
+            <button onclick="zjhStart()">开始新局</button>
+            <button onclick="closeZjh()">退出</button>
+          </div>
+        </div>
+        <!-- 转盘弹窗升级版 -->
+        <div id="dialModal" class="modal" style="display:none;">
+          <div class="modal-content">
+            <span class="close" onclick="closeDial()">&times;</span>
+            <h2>幸运转盘 <span id="dialThemeBtn" style="cursor:pointer;">🎨</span></h2>
+            <div id="dialBoard"></div>
+            <div id="dialStatus"></div>
+            <button onclick="dialSpin()">旋转</button>
+            <button onclick="closeDial()">退出</button>
+          </div>
+        </div>
+        <!-- 21点弹窗升级版 -->
+        <div id="bjModal" class="modal" style="display:none;">
+          <div class="modal-content">
+            <span class="close" onclick="closeBj()">&times;</span>
+            <h2>21点 <span id="bjThemeBtn" style="cursor:pointer;">🎨</span></h2>
+            <div id="bjTable"></div>
+            <div id="bjStatus"></div>
+            <button onclick="bjStart()">新局</button>
+            <button onclick="bjHit()">要牌</button>
+            <button onclick="bjStand()">停牌</button>
+            <button onclick="closeBj()">退出</button>
+          </div>
+        </div>
+        <!-- 老虎机弹窗升级版 -->
+        <div id="slotModal" class="modal" style="display:none;">
+          <div class="modal-content">
+            <span class="close" onclick="closeSlot()">&times;</span>
+            <h2>经典老虎机 <span id="slotThemeBtn" style="cursor:pointer;">🎨</span></h2>
+            <div id="slotMachine"></div>
+            <div id="slotStatus"></div>
+            <button id="slotLeverBtn" onclick="slotSpin()" style="font-size:20px;">拉杆</button>
+            <button onclick="closeSlot()">退出</button>
+          </div>
+        </div>
+        <audio id="gomokuDrop" src="https://cdn.jsdelivr.net/gh/xiangyuecn/Recorder/assets/recorder.mp3" preload="auto"></audio>
+        <audio id="gomokuWin" src="https://cdn.pixabay.com/audio/2022/03/15/audio_115b9b3b3e.mp3" preload="auto"></audio>
         <div class='game-area' id='jinhuaArea'>
             <h2 style='text-align:center;'>炸金花</h2>
             <div id='jinhuaTable' style='text-align:center; margin:18px 0;'></div>

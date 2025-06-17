@@ -38,31 +38,38 @@ class GomokuDomain {
         if ($data['board'][$x][$y]!=0) return ['code'=>-1, 'msg'=>'该位置已落子'];
         $data['board'][$x][$y] = $color;
         $data['turn'] = $data['players'][1-$color+1];
-        $winner = $this->checkWinner($data['board'], $x, $y, $color);
-        if ($winner) $data['winner'] = $uid;
+        $winLine = [];
+        $winner = $this->checkWinner($data['board'], $x, $y, $color, $winLine);
+        if ($winner) {
+            $data['winner'] = $uid;
+            $data['winLine'] = $winLine;
+        }
         $this->redis->set($roomId, json_encode($data));
-        return ['code'=>0, 'msg'=>'落子成功', 'winner'=>$winner?$uid:0, 'board'=>$data['board']];
+        return ['code'=>0, 'msg'=>'落子成功', 'winner'=>$winner?$uid:0, 'board'=>$data['board'], 'winLine'=>$winLine];
     }
     public function getBoard($roomId) {
         $data = json_decode($this->redis->get($roomId), true);
         if (!$data) return ['code'=>-1, 'msg'=>'房间不存在'];
-        return ['code'=>0, 'board'=>$data['board'], 'players'=>$data['players'], 'turn'=>$data['turn'], 'winner'=>$data['winner']];
+        return ['code'=>0, 'board'=>$data['board'], 'players'=>$data['players'], 'turn'=>$data['turn'], 'winner'=>$data['winner'], 'winLine'=>($data['winLine']??[])];
     }
-    private function checkWinner($board, $x, $y, $color) {
+    private function checkWinner($board, $x, $y, $color, &$winLine=[]) {
         $dirs = [[1,0],[0,1],[1,1],[1,-1]];
         foreach ($dirs as $d) {
-            $cnt = 1;
+            $cnt = 1; $sx=$x; $sy=$y; $ex=$x; $ey=$y;
             for ($i=1;$i<5;$i++) {
                 $nx=$x+$d[0]*$i; $ny=$y+$d[1]*$i;
                 if ($nx<0||$nx>14||$ny<0||$ny>14||$board[$nx][$ny]!=$color) break;
-                $cnt++;
+                $cnt++; $ex=$nx; $ey=$ny;
             }
             for ($i=1;$i<5;$i++) {
                 $nx=$x-$d[0]*$i; $ny=$y-$d[1]*$i;
                 if ($nx<0||$nx>14||$ny<0||$ny>14||$board[$nx][$ny]!=$color) break;
-                $cnt++;
+                $cnt++; $sx=$nx; $sy=$ny;
             }
-            if ($cnt>=5) return true;
+            if ($cnt>=5) {
+                $winLine = [[$sx,$sy],[$ex,$ey]];
+                return true;
+            }
         }
         return false;
     }
