@@ -261,9 +261,42 @@ if (isset($_GET['action'])) {
         </div>
     </div>
     <script>
-    function playAudio(id) {
-        let a = document.getElementById(id); if(a) { a.currentTime=0; a.play(); }
-    }
+    // 全局定时器管理，防止弹窗关闭后定时器残留
+let globalTimers = [];
+function clearGlobalTimers() { globalTimers.forEach(t=>clearTimeout(t)); globalTimers=[]; }
+
+// 统一弹窗关闭逻辑
+function closeModal(modalId) {
+  document.getElementById(modalId).style.display = 'none';
+  clearGlobalTimers();
+}
+// 统一主题切换按钮逻辑
+function bindThemeBtn(btnId, themesArr, renderFn, lastDataVar) {
+  document.getElementById(btnId).onclick = function() {
+    window[themesArr+'_idx'] = (window[themesArr+'_idx']||0)+1;
+    if(window[themesArr+'_idx']>=window[themesArr].length) window[themesArr+'_idx']=0;
+    renderFn(window[lastDataVar]);
+  };
+}
+// 统一音效播放
+function playAudio(id) {
+  let a = document.getElementById(id); if(a) { a.currentTime=0; a.play(); }
+}
+// 统一按钮禁用/启用
+function setBtnDisabled(id, dis) {
+  let btn = document.getElementById(id); if(btn) btn.disabled = dis;
+}
+// 统一弹窗打开逻辑
+function openModal(modalId, resetFn) {
+  closeModal(modalId); // 保证无残留
+  document.getElementById(modalId).style.display = 'block';
+  if(typeof resetFn==='function') resetFn();
+}
+// 统一fetch错误处理
+function safeFetch(url, opt, cb) {
+  fetch(url, opt).then(r=>r.json()).then(cb).catch(()=>alert('网络异常'));
+}
+
     function showGame(game) {
         document.getElementById('gameList').style.display = 'none';
         document.getElementById('jinhuaArea').style.display = (game==='jinhua') ? 'block' : 'none';
