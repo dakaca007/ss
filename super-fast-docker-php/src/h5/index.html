@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>H5 直播系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #181818; color: #fff; }
+        #player { width: 100%; max-width: 720px; margin: 20px auto; background: #000; }
+        #chat { width: 100%; max-width: 720px; margin: 20px auto; background: #222; border-radius: 8px; padding: 10px; }
+        #messages { height: 200px; overflow-y: auto; background: #111; border-radius: 4px; padding: 8px; margin-bottom: 10px; }
+        #input { display: flex; }
+        #input input { flex: 1; padding: 8px; border: none; border-radius: 4px 0 0 4px; }
+        #input button { padding: 8px 16px; border: none; background: #09f; color: #fff; border-radius: 0 4px 4px 0; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="player">
+        <video id="liveVideo" controls autoplay style="width:100%;height:400px;background:#000;"></video>
+    </div>
+    <div id="chat">
+        <div id="messages"></div>
+        <div id="input">
+            <input type="text" id="msgInput" placeholder="输入消息...">
+            <button onclick="sendMsg()">发送</button>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/flv.js@latest/dist/flv.min.js"></script>
+    <script>
+    // 播放器初始化
+    function startPlayer() {
+        if (flvjs.isSupported()) {
+            var videoElement = document.getElementById('liveVideo');
+            var flvPlayer = flvjs.createPlayer({
+                type: 'flv',
+                url: '/api/stream/flv' // 后端返回的拉流地址
+            });
+            flvPlayer.attachMediaElement(videoElement);
+            flvPlayer.load();
+            flvPlayer.play();
+        }
+    }
+    startPlayer();
+
+    // 聊天室简单实现
+    function appendMsg(msg) {
+        var messages = document.getElementById('messages');
+        var div = document.createElement('div');
+        div.textContent = msg;
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+    }
+    function sendMsg() {
+        var input = document.getElementById('msgInput');
+        var msg = input.value.trim();
+        if (!msg) return;
+        fetch('/api/chat/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ msg })
+        });
+        input.value = '';
+    }
+    // 轮询获取消息
+    setInterval(function() {
+        fetch('/api/chat/list').then(r => r.json()).then(list => {
+            document.getElementById('messages').innerHTML = '';
+            list.forEach(appendMsg);
+        });
+    }, 1000);
+    </script>
+</body>
+</html>

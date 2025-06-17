@@ -1,6 +1,7 @@
 <?php
-// PHP 入口文件，转发到 index.html 或 API
-if (preg_match('/\.(?:png|jpg|jpeg|gif|css|js)$/', $_SERVER["REQUEST_URI"])) {
-    return false; // 让 nginx 处理静态文件
+// 简单路由，转发 /api/* 到 api.php，其余返回 index.html
+if (preg_match('#^/api/#', $_SERVER['REQUEST_URI'])) {
+    require __DIR__ . '/api.php';
+    exit;
 }
-readfile(__DIR__ . '/index.html');
+readfile(__DIR__ . '/h5/index.html');
