@@ -32,10 +32,16 @@ if (isset($_GET['action'])) {
         .back-btn { margin:18px 0 0 0; background:#ff9800; color:#fff; border:none; border-radius:8px; padding:10px 24px; font-size:1em; cursor:pointer; }
         .bet-btn { margin:0 4px; background:#43a047; color:#fff; border:none; border-radius:6px; padding:7px 16px; font-size:1em; cursor:pointer; }
         .bet-btn:disabled { background:#888; cursor:not-allowed; }
-        .winner { box-shadow:0 0 16px 4px #ffd600; border:2px solid #ffd600 !important; }
+        .winner { box-shadow:0 0 16px 4px #ffd600; border:2px solid #ffd600 !important; animation: winnerFlash 0.8s alternate infinite; }
+        @keyframes winnerFlash { 0%{box-shadow:0 0 16px 4px #ffd600;} 100%{box-shadow:0 0 32px 8px #fff700;} }
         .dial-sector { transition:filter .3s; }
-        .dial-winner { filter:drop-shadow(0 0 12px #ffd600); }
+        .dial-winner { filter:drop-shadow(0 0 12px #ffd600); animation: dialWin 1s alternate infinite; }
+        @keyframes dialWin { 0%{filter:drop-shadow(0 0 12px #ffd600);} 100%{filter:drop-shadow(0 0 32px #fff700);} }
         .status-tip { color:#ffd600; font-size:1.1em; margin:10px 0; }
+        .card-anim { animation: cardDeal 0.5s cubic-bezier(.4,2,.6,1) both; }
+        @keyframes cardDeal { 0%{transform:scale(0.2) rotate(-30deg); opacity:0;} 100%{transform:scale(1) rotate(0); opacity:1;} }
+        .dial-spin { animation: dialSpin 1.2s cubic-bezier(.4,2,.6,1) both; }
+        @keyframes dialSpin { 0%{transform:rotate(0deg);} 100%{transform:rotate(720deg);} }
         @media (max-width: 600px) {
             .container { margin:8px; padding:8px; }
             .game-list { flex-direction:column; gap:18px; }
@@ -44,6 +50,9 @@ if (isset($_GET['action'])) {
     </style>
 </head>
 <body>
+    <audio id="audioDeal" src="https://cdn.jsdelivr.net/gh/xiangyuecn/recorder/assets/recorder-core/btn.mp3"></audio>
+    <audio id="audioWin" src="https://cdn.jsdelivr.net/gh/xiangyuecn/recorder/assets/recorder-core/ok.mp3"></audio>
+    <audio id="audioSpin" src="https://cdn.jsdelivr.net/gh/xiangyuecn/recorder/assets/recorder-core/recorder.mp3"></audio>
     <div class='container'>
         <h1>H5 精彩手机游戏大厅</h1>
         <div class='game-list' id='gameList'>
@@ -81,6 +90,9 @@ if (isset($_GET['action'])) {
         </div>
     </div>
     <script>
+    function playAudio(id) {
+        let a = document.getElementById(id); if(a) { a.currentTime=0; a.play(); }
+    }
     function showGame(game) {
         document.getElementById('gameList').style.display = 'none';
         document.getElementById('jinhuaArea').style.display = (game==='jinhua') ? 'block' : 'none';
@@ -105,10 +117,11 @@ if (isset($_GET['action'])) {
         res.innerHTML = '发牌中...';
         fetch('?action=Jinhua&liveuid=1&stream=test&token=abc').then(r=>r.json()).then(data=>{
             if(data.code===0 && data.info[0].cards) {
+                playAudio('audioDeal');
                 jinhuaState = {gameid:data.info[0].gameid, bets:[0,0,0], cards:data.info[0].cards, betCount:0};
                 let html = '<div style="margin:10px 0;">';
                 data.info[0].cards.forEach((hand,i)=>{
-                    html += `<span id='jhand${i}' style='display:inline-block;margin:0 8px;'>`+hand.map(card=>renderCard(card)).join(' ')+`</span>`;
+                    html += `<span id='jhand${i}' style='display:inline-block;margin:0 8px;'>`+hand.map(card=>renderCard(card,true)).join(' ')+`</span>`;
                 });
                 html += '</div>';
                 html += `<div style='margin:10px 0;'>`;
@@ -126,6 +139,7 @@ if (isset($_GET['action'])) {
     function jinhuaBet(pos) {
         let res = document.getElementById('jinhuaTip');
         if(!jinhuaState.gameid) return;
+        playAudio('audioDeal');
         fetch(`?action=JinhuaBet&uid=1&gameid=${jinhuaState.gameid}&token=abc&coin=100&grade=${pos}`).then(r=>r.json()).then(data=>{
             jinhuaState.bets[pos-1] += 100;
             res.innerHTML = `已下注：${jinhuaState.bets.map((b,i)=>`第${i+1}家${b}`).join(' | ')}`;
@@ -136,9 +150,10 @@ if (isset($_GET['action'])) {
         if(!jinhuaState.gameid) return;
         fetch(`?action=endGame&liveuid=1&gameid=${jinhuaState.gameid}&token=abc&type=1&ifset=0`).then(r=>r.json()).then(endData=>{
             let winner = (endData.info[0]&&endData.info[0].winner)||0;
+            playAudio('audioWin');
             let html = `<div>结算结果：<br>赢家位置：<b style='color:#ffd600;'>${parseInt(winner)+1}</b><br>牌面：<br>`;
             endData.info[0].cards.forEach((hand,i)=>{
-                html += `<span id='jhand${i}' class='${i==winner?'winner':''}' style='display:inline-block;margin:0 8px;'>`+hand.map(card=>renderCard(card)).join(' ')+`</span>`;
+                html += `<span id='jhand${i}' class='${i==winner?'winner card-anim':'card-anim'}' style='display:inline-block;margin:0 8px;'>`+hand.map(card=>renderCard(card)).join(' ')+`</span>`;
             });
             html += `</div><button class='game-btn' onclick='loadJinhua()'>再来一局</button>`;
             res.innerHTML = html;
@@ -156,8 +171,9 @@ if (isset($_GET['action'])) {
         res.innerHTML = '下注中...';
         fetch('?action=Dial&liveuid=1&stream=test&token=abc').then(r=>r.json()).then(data=>{
             if(data.code===0 && data.info[0].gameid) {
+                playAudio('audioSpin');
                 dialState = {gameid:data.info[0].gameid, bets:[0,0,0,0,0,0]};
-                let html = `<svg id='dialSVG' width='160' height='160' viewBox='0 0 160 160' style='margin:10px 0;'>`;
+                let html = `<svg id='dialSVG' width='160' height='160' viewBox='0 0 160 160' style='margin:10px 0;' class='dial-spin'>`;
                 for(let i=0;i<6;i++) {
                     let angle = i*60;
                     html += `<path id='dsector${i}' class='dial-sector' d='M80,80 L${80+70*Math.cos((angle-30)*Math.PI/180)},${80+70*Math.sin((angle-30)*Math.PI/180)} A70,70 0 0,1 ${80+70*Math.cos((angle+30)*Math.PI/180)},${80+70*Math.sin((angle+30)*Math.PI/180)} Z' fill='${i%2==0?'#ffd600':'#ff9800'}' stroke='#fff' stroke-width='2'/>`;
@@ -178,6 +194,7 @@ if (isset($_GET['action'])) {
     function dialBet(pos) {
         let res = document.getElementById('dialTip');
         if(!dialState.gameid) return;
+        playAudio('audioDeal');
         fetch(`?action=Dial_Bet&uid=1&gameid=${dialState.gameid}&token=abc&coin=50&grade=${pos}`).then(r=>r.json()).then(data=>{
             dialState.bets[pos-1] += 50;
             res.innerHTML = `已下注：${dialState.bets.map((b,i)=>`区${i+1}:${b}`).join(' | ')}`;
@@ -188,6 +205,7 @@ if (isset($_GET['action'])) {
         if(!dialState.gameid) return;
         fetch(`?action=Dial_end&liveuid=1&gameid=${dialState.gameid}&token=abc&type=1&ifset=0`).then(r=>r.json()).then(endData=>{
             let result = (endData.info[0]&&endData.info[0].result)||0;
+            playAudio('audioWin');
             let html = `<svg id='dialSVG' width='160' height='160' viewBox='0 0 160 160' style='margin:10px 0;'>`;
             for(let i=0;i<6;i++) {
                 let angle = i*60;
@@ -200,12 +218,12 @@ if (isset($_GET['action'])) {
         });
     }
     // 牌面渲染
-    function renderCard(card) {
+    function renderCard(card, anim) {
         let [color,num] = card.split('-');
         let colorMap = {1:'#388e3c',2:'#1976d2',3:'#d32f2f',4:'#fbc02d'};
         let numMap = {11:'J',12:'Q',13:'K',14:'A'};
         let showNum = numMap[num]||num;
-        return `<span style='display:inline-block;width:32px;height:44px;background:#fff;border-radius:6px;border:2px solid #888;margin:0 2px;box-shadow:0 2px 8px #0003;position:relative;'><span style='color:${colorMap[color]||'#222'};font-weight:bold;font-size:1.2em;position:absolute;left:6px;top:4px;'>${showNum}</span></span>`;
+        return `<span style='display:inline-block;width:32px;height:44px;background:#fff;border-radius:6px;border:2px solid #888;margin:0 2px;box-shadow:0 2px 8px #0003;position:relative;' class='${anim?'card-anim':''}'><span style='color:${colorMap[color]||'#222'};font-weight:bold;font-size:1.2em;position:absolute;left:6px;top:4px;'>${showNum}</span></span>`;
     }
     </script>
 </body>
