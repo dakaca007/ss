@@ -33,6 +33,8 @@ class GameApi {
                 return $this->setBanker($params, $domain);
             case 'quietBanker':
                 return $this->quietBanker($params, $domain);
+            case 'Slot':
+                return $this->Slot($params);
             default:
                 return ['code' => 404, 'msg' => '接口不存在', 'info' => []];
         }
@@ -189,4 +191,50 @@ class GameApi {
         $info = $domain->quietBanker($uid, $stream);
         return $info;
     }
+    public function Slot($params) {
+        // 老虎机符号
+        $symbols = [0,1,2,3,4,5]; // 前端有6种符号
+        $rows = 3; $cols = 3;
+        $result = [];
+        for ($r=0;$r<$rows;$r++) {
+            $row = [];
+            for ($c=0;$c<$cols;$c++) {
+                $row[] = $symbols[array_rand($symbols)];
+            }
+            $result[] = $row;
+        }
+        // 判断中奖：任意一行/列/对角线全相同即为中奖
+        $win = false;
+        // 行
+        foreach($result as $row) if(count(array_unique($row))==1) $win=true;
+        // 列
+        for($c=0;$c<$cols;$c++){
+            $col = [$result[0][$c],$result[1][$c],$result[2][$c]];
+            if(count(array_unique($col))==1) $win=true;
+        }
+        // 对角线
+        if($result[0][0]==$result[1][1]&&$result[1][1]==$result[2][2]) $win=true;
+        if($result[0][2]==$result[1][1]&&$result[1][1]==$result[2][0]) $win=true;
+        return [
+            'code'=>0,
+            'result'=>$result,
+            'win'=>$win?1:0
+        ];
+    }
+}
+
+// 路由分发
+if (php_sapi_name() !== 'cli') {
+    header('Content-Type: application/json');
+    $action = $_GET['action'] ?? '';
+    $params = array_merge($_GET, $_POST);
+    // 兼容 Authorization 头
+    if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        $params['token'] = $_SERVER['HTTP_AUTHORIZATION'];
+        $params['uid'] = 1; // 模拟uid
+    }
+    $api = new GameApi();
+    $res = $api->handle($action, $params);
+    echo json_encode($res);
+    exit;
 }
