@@ -22,8 +22,8 @@ if (isset($_GET['action'])) {
         body { margin:0; padding:0; font-family:sans-serif; background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%); color:#fff; }
         .container { max-width:520px; margin:40px auto; padding:24px; background:rgba(0,0,0,0.85); border-radius:18px; box-shadow:0 8px 32px #0008; }
         h1 { font-size:2.2em; text-align:center; letter-spacing:2px; margin-bottom:18px; }
-        .game-list { display:flex; gap:24px; justify-content:center; margin:32px 0; }
-        .game-card { background:rgba(255,255,255,0.07); border-radius:16px; box-shadow:0 2px 8px #0004; padding:18px 16px 12px 16px; width:180px; text-align:center; cursor:pointer; transition:transform .2s; }
+        .game-list { display:flex; gap:24px; justify-content:center; margin:32px 0; flex-wrap:wrap; }
+        .game-card { background:rgba(255,255,255,0.07); border-radius:16px; box-shadow:0 2px 8px #0004; padding:18px 16px 12px 16px; width:180px; text-align:center; cursor:pointer; transition:transform .2s; margin-bottom:18px; }
         .game-card:hover { transform:scale(1.05); background:rgba(255,255,255,0.13); }
         .game-svg { width:90px; height:90px; margin-bottom:10px; }
         .game-title { font-size:1.2em; font-weight:bold; margin-bottom:6px; }
@@ -42,6 +42,14 @@ if (isset($_GET['action'])) {
         @keyframes cardDeal { 0%{transform:scale(0.2) rotate(-30deg); opacity:0;} 100%{transform:scale(1) rotate(0); opacity:1;} }
         .dial-spin { animation: dialSpin 1.2s cubic-bezier(.4,2,.6,1) both; }
         @keyframes dialSpin { 0%{transform:rotate(0deg);} 100%{transform:rotate(720deg);} }
+        .slot-reel { display:inline-block; width:38px; height:38px; background:#fff; border-radius:8px; margin:0 2px; font-size:2em; text-align:center; line-height:38px; box-shadow:0 2px 8px #0003; border:2px solid #888; }
+        .slot-anim { animation: slotSpin 0.5s cubic-bezier(.4,2,.6,1) both; }
+        @keyframes slotSpin { 0%{transform:scale(0.2) rotate(-30deg); opacity:0;} 100%{transform:scale(1) rotate(0); opacity:1;} }
+        .bj-card { display:inline-block; width:36px; height:48px; background:#fff; border-radius:6px; border:2px solid #888; margin:0 2px; box-shadow:0 2px 8px #0003; position:relative; }
+        .bj-card .bj-num { color:#222; font-weight:bold; font-size:1.2em; position:absolute;left:6px;top:4px; }
+        .bj-card.bj-anim { animation: cardDeal 0.5s cubic-bezier(.4,2,.6,1) both; }
+        .bj-bust { color:#e53935; font-weight:bold; }
+        .bj-win { color:#ffd600; font-weight:bold; }
         @media (max-width: 600px) {
             .container { margin:8px; padding:8px; }
             .game-list { flex-direction:column; gap:18px; }
@@ -73,6 +81,24 @@ if (isset($_GET['action'])) {
                 <div class='game-title'>幸运转盘</div>
                 <div class='game-desc'>下注转盘，幸运开奖，赢取大奖！</div>
             </div>
+            <div class='game-card' onclick="showGame('blackjack')">
+                <svg class='game-svg' viewBox='0 0 100 100'>
+                    <rect x='20' y='20' width='60' height='60' rx='12' fill='#fff' stroke='#222' stroke-width='4'/>
+                    <text x='50' y='60' text-anchor='middle' font-size='32' fill='#222' font-family='Arial' font-weight='bold'>21</text>
+                </svg>
+                <div class='game-title'>21点</div>
+                <div class='game-desc'>与庄家对决，点数不能爆！</div>
+            </div>
+            <div class='game-card' onclick="showGame('slot')">
+                <svg class='game-svg' viewBox='0 0 100 100'>
+                    <rect x='10' y='30' width='80' height='40' rx='10' fill='#fff' stroke='#222' stroke-width='4'/>
+                    <circle cx='30' cy='50' r='8' fill='#e53935'/>
+                    <circle cx='50' cy='50' r='8' fill='#ffd600'/>
+                    <circle cx='70' cy='50' r='8' fill='#43a047'/>
+                </svg>
+                <div class='game-title'>老虎机</div>
+                <div class='game-desc'>拉动拉杆，水果连线中大奖！</div>
+            </div>
         </div>
         <div class='game-area' id='jinhuaArea'>
             <h2 style='text-align:center;'>炸金花</h2>
@@ -88,6 +114,20 @@ if (isset($_GET['action'])) {
                 <button class='back-btn' onclick="backToHall()">返回大厅</button>
             </div>
         </div>
+        <div class='game-area' id='blackjackArea'>
+            <h2 style='text-align:center;'>21点（Blackjack）</h2>
+            <div id='bjTable' style='text-align:center; margin:18px 0;'></div>
+            <div style='text-align:center;'>
+                <button class='back-btn' onclick="backToHall()">返回大厅</button>
+            </div>
+        </div>
+        <div class='game-area' id='slotArea'>
+            <h2 style='text-align:center;'>老虎机</h2>
+            <div id='slotTable' style='text-align:center; margin:18px 0;'></div>
+            <div style='text-align:center;'>
+                <button class='back-btn' onclick="backToHall()">返回大厅</button>
+            </div>
+        </div>
     </div>
     <script>
     function playAudio(id) {
@@ -97,13 +137,19 @@ if (isset($_GET['action'])) {
         document.getElementById('gameList').style.display = 'none';
         document.getElementById('jinhuaArea').style.display = (game==='jinhua') ? 'block' : 'none';
         document.getElementById('dialArea').style.display = (game==='dial') ? 'block' : 'none';
+        document.getElementById('blackjackArea').style.display = (game==='blackjack') ? 'block' : 'none';
+        document.getElementById('slotArea').style.display = (game==='slot') ? 'block' : 'none';
         if(game==='jinhua') loadJinhua();
         if(game==='dial') loadDial();
+        if(game==='blackjack') loadBlackjack();
+        if(game==='slot') loadSlot();
     }
     function backToHall() {
         document.getElementById('gameList').style.display = 'flex';
         document.getElementById('jinhuaArea').style.display = 'none';
         document.getElementById('dialArea').style.display = 'none';
+        document.getElementById('blackjackArea').style.display = 'none';
+        document.getElementById('slotArea').style.display = 'none';
     }
     // 炸金花演示
     let jinhuaState = {};
@@ -216,6 +262,80 @@ if (isset($_GET['action'])) {
             html += `<button class='game-btn' onclick='loadDial()'>再来一局</button>`;
             res.innerHTML = html;
         });
+    }
+    // 21点小游戏
+    function loadBlackjack() {
+        let table = document.getElementById('bjTable');
+        table.innerHTML = `<button class='game-btn' onclick='bjStart()'>发牌</button><div id='bjResult' style='margin-top:18px;'></div>`;
+    }
+    let bjState = {};
+    function bjStart() {
+        playAudio('audioDeal');
+        bjState = {player:[],dealer:[],over:false};
+        bjState.player.push(bjDrawCard());
+        bjState.player.push(bjDrawCard());
+        bjState.dealer.push(bjDrawCard());
+        bjState.dealer.push(bjDrawCard());
+        bjRender();
+    }
+    function bjDrawCard() {
+        let n = Math.floor(Math.random()*13)+1;
+        return n>10?10:n; // JQK算10
+    }
+    function bjSum(arr) {
+        let sum = arr.reduce((a,b)=>a+b,0);
+        let ace = arr.filter(x=>x==1).length;
+        while(ace>0 && sum+10<=21) { sum+=10; ace--; }
+        return sum;
+    }
+    function bjRender() {
+        let res = document.getElementById('bjResult');
+        let html = `<div>庄家：`+bjState.dealer.map((n,i)=>`<span class='bj-card${i==0?'':' bj-anim'}'><span class='bj-num'>${n}</span></span>`).join('')+`</div>`;
+        html += `<div>玩家：`+bjState.player.map(n=>`<span class='bj-card bj-anim'><span class='bj-num'>${n}</span></span>`).join('')+`</div>`;
+        html += `<div>玩家点数：<b>${bjSum(bjState.player)}</b></div>`;
+        if(bjState.over) {
+            let p = bjSum(bjState.player), d = bjSum(bjState.dealer);
+            let msg = '';
+            if(p>21) msg = '<span class="bj-bust">爆了！你输了</span>';
+            else if(d>21) msg = '<span class="bj-win">庄家爆了，你赢了！</span>';
+            else if(p==d) msg = '平局';
+            else if(p>d) msg = '<span class="bj-win">你赢了！</span>';
+            else msg = '<span class="bj-bust">你输了</span>';
+            html += `<div style='margin:10px 0;'>${msg}</div><button class='game-btn' onclick='loadBlackjack()'>再来一局</button>`;
+            playAudio(msg.includes('赢')?'audioWin':'audioDeal');
+        } else {
+            html += `<button class='bet-btn' onclick='bjHit()'>要牌</button><button class='bet-btn' onclick='bjStand()'>停牌</button>`;
+        }
+        res.innerHTML = html;
+    }
+    function bjHit() {
+        bjState.player.push(bjDrawCard());
+        if(bjSum(bjState.player)>=21) { bjState.over=true; bjDealerPlay(); }
+        bjRender();
+    }
+    function bjStand() {
+        bjState.over=true; bjDealerPlay(); bjRender();
+    }
+    function bjDealerPlay() {
+        while(bjSum(bjState.dealer)<17) bjState.dealer.push(bjDrawCard());
+    }
+    // 老虎机小游戏
+    function loadSlot() {
+        let table = document.getElementById('slotTable');
+        table.innerHTML = `<button class='game-btn' onclick='slotSpin()'>拉动拉杆</button><div id='slotResult' style='margin-top:18px;'></div>`;
+    }
+    function slotSpin() {
+        playAudio('audioSpin');
+        let res = document.getElementById('slotResult');
+        let icons = ['🍒','🍋','🍊','🍉','⭐','7️⃣'];
+        let r = [0,0,0];
+        for(let i=0;i<3;i++) r[i]=Math.floor(Math.random()*icons.length);
+        let html = `<div style='margin:10px 0;'>`+r.map(i=>`<span class='slot-reel slot-anim'>${icons[i]}</span>`).join('')+`</div>`;
+        let win = (r[0]==r[1]&&r[1]==r[2]);
+        html += `<div style='margin:10px 0;'>${win?'<span class="bj-win">恭喜！中三连！</span>':'再试一次吧~'}</div>`;
+        html += `<button class='game-btn' onclick='loadSlot()'>再来一局</button>`;
+        res.innerHTML = html;
+        if(win) playAudio('audioWin');
     }
     // 牌面渲染
     function renderCard(card, anim) {
