@@ -1,8 +1,20 @@
 <?php
-// This is the entry point of the application.
-// You can write PHP code here to handle requests and return responses for your game logic.
+// 入口文件，支持接口和前端页面
+require_once __DIR__ . '/api/Game.php';
 
-echo "<!DOCTYPE html>
+if (isset($_GET['action'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $action = $_GET['action'];
+    $params = $_REQUEST;
+    $api = new GameApi();
+    $result = $api->handle($action, $params);
+    echo json_encode($result, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// 默认输出前端页面
+?>
+<!DOCTYPE html>
 <html lang='zh-cn'>
 <head>
     <meta charset='UTF-8'>
@@ -26,5 +38,4 @@ echo "<!DOCTYPE html>
         <p>已经完美预先</p>
     </div>
 </body>
-</html>";
-?>
+</html>
