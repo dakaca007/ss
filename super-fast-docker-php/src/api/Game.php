@@ -193,32 +193,23 @@ class GameApi {
     }
     public function Slot($params) {
         // 老虎机符号
-        $symbols = [0,1,2,3,4,5]; // 前端有6种符号
-        $rows = 3; $cols = 3;
+        $symbols = [0,1,2,3,4,5]; // 与前端符号顺序保持一致
+        $rows = 3;
+        $cols = 3;
         $result = [];
-        for ($r=0;$r<$rows;$r++) {
+        for ($r=0; $r<$rows; $r++) {
             $row = [];
-            for ($c=0;$c<$cols;$c++) {
+            for ($c=0; $c<$cols; $c++) {
                 $row[] = $symbols[array_rand($symbols)];
             }
             $result[] = $row;
         }
-        // 判断中奖：任意一行/列/对角线全相同即为中奖
-        $win = false;
-        // 行
-        foreach($result as $row) if(count(array_unique($row))==1) $win=true;
-        // 列
-        for($c=0;$c<$cols;$c++){
-            $col = [$result[0][$c],$result[1][$c],$result[2][$c]];
-            if(count(array_unique($col))==1) $win=true;
-        }
-        // 对角线
-        if($result[0][0]==$result[1][1]&&$result[1][1]==$result[2][2]) $win=true;
-        if($result[0][2]==$result[1][1]&&$result[1][1]==$result[2][0]) $win=true;
+        // 判断是否中奖：中间一行三个相同
+        $win = ($result[1][0] === $result[1][1] && $result[1][1] === $result[1][2]);
         return [
-            'code'=>0,
-            'result'=>$result,
-            'win'=>$win?1:0
+            'code' => 0,
+            'result' => $result,
+            'win' => $win ? 1 : 0
         ];
     }
 }
