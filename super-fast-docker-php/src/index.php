@@ -55,6 +55,12 @@ if (isset($_GET['action'])) {
             .game-list { flex-direction:column; gap:18px; }
             .game-card { width:100%; }
         }
+        /* 新增五子棋样式 */
+        .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; overflow:auto; background-color:rgba(0,0,0,0.8); }
+        .modal-content { background-color:#222; margin:15% auto; padding:20px; border:1px solid #888; width:80%; max-width:600px; border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,0.2); }
+        .close { color:#aaa; float:right; font-size:28px; font-weight:bold; cursor:pointer; }
+        .close:hover, .close:focus { color:#fff; text-decoration:none; cursor:pointer; }
+        #gomokuBoard { margin:20px 0; }
     </style>
 </head>
 <body>
@@ -99,6 +105,41 @@ if (isset($_GET['action'])) {
                 <div class='game-title'>老虎机</div>
                 <div class='game-desc'>拉动拉杆，水果连线中大奖！</div>
             </div>
+            <div class='game-card' onclick="showGame('guess')">
+                <svg class='game-svg' viewBox='0 0 100 100'>
+                    <rect x='20' y='20' width='60' height='60' rx='12' fill='#fff' stroke='#222' stroke-width='4'/>
+                    <text x='50' y='60' text-anchor='middle' font-size='32' fill='#e53935' font-family='Arial' font-weight='bold'>?</text>
+                </svg>
+                <div class='game-title'>猜数字</div>
+                <div class='game-desc'>1~100，猜中为赢，支持提示！</div>
+            </div>
+            <div class='game-card' onclick="showGame('tetris')">
+                <svg class='game-svg' viewBox='0 0 100 100'>
+                    <rect x='10' y='10' width='80' height='80' rx='10' fill='#222' stroke='#fff' stroke-width='4'/>
+                    <rect x='30' y='30' width='16' height='16' fill='#ffd600'/>
+                    <rect x='46' y='30' width='16' height='16' fill='#43a047'/>
+                    <rect x='62' y='30' width='16' height='16' fill='#e53935'/>
+                </svg>
+                <div class='game-title'>俄罗斯方块</div>
+                <div class='game-desc'>极简方块堆叠，挑战极限！</div>
+            </div>
+        </div>
+        <!-- 游戏大厅按钮区 -->
+        <div class="game-buttons" style="text-align:center; margin:20px 0;">
+            <!-- ...已有游戏按钮... -->
+            <button class='back-btn' onclick="showGomoku()">五子棋</button>
+        </div>
+        <!-- 五子棋弹窗 -->
+        <div id="gomokuModal" class="modal" style="display:none;">
+          <div class="modal-content">
+            <span class="close" onclick="closeGomoku()">&times;</span>
+            <h2>五子棋</h2>
+            <div id="gomokuBoard"></div>
+            <div id="gomokuStatus"></div>
+            <button onclick="createGomokuRoom()">创建房间</button>
+            <input id="gomokuRoomId" placeholder="房间号"><button onclick="joinGomokuRoom()">加入房间</button>
+            <div id="gomokuControls" style="display:none;"></div>
+          </div>
         </div>
         <div class='game-area' id='jinhuaArea'>
             <h2 style='text-align:center;'>炸金花</h2>
@@ -128,6 +169,20 @@ if (isset($_GET['action'])) {
                 <button class='back-btn' onclick="backToHall()">返回大厅</button>
             </div>
         </div>
+        <div class='game-area' id='guessArea'>
+            <h2 style='text-align:center;'>猜数字</h2>
+            <div id='guessTable' style='text-align:center; margin:18px 0;'></div>
+            <div style='text-align:center;'>
+                <button class='back-btn' onclick="backToHall()">返回大厅</button>
+            </div>
+        </div>
+        <div class='game-area' id='tetrisArea'>
+            <h2 style='text-align:center;'>俄罗斯方块</h2>
+            <div id='tetrisTable' style='text-align:center; margin:18px 0;'></div>
+            <div style='text-align:center;'>
+                <button class='back-btn' onclick="backToHall()">返回大厅</button>
+            </div>
+        </div>
     </div>
     <script>
     function playAudio(id) {
@@ -139,10 +194,14 @@ if (isset($_GET['action'])) {
         document.getElementById('dialArea').style.display = (game==='dial') ? 'block' : 'none';
         document.getElementById('blackjackArea').style.display = (game==='blackjack') ? 'block' : 'none';
         document.getElementById('slotArea').style.display = (game==='slot') ? 'block' : 'none';
+        document.getElementById('guessArea').style.display = (game==='guess') ? 'block' : 'none';
+        document.getElementById('tetrisArea').style.display = (game==='tetris') ? 'block' : 'none';
         if(game==='jinhua') loadJinhua();
         if(game==='dial') loadDial();
         if(game==='blackjack') loadBlackjack();
         if(game==='slot') loadSlot();
+        if(game==='guess') loadGuess();
+        if(game==='tetris') loadTetris();
     }
     function backToHall() {
         document.getElementById('gameList').style.display = 'flex';
@@ -150,6 +209,8 @@ if (isset($_GET['action'])) {
         document.getElementById('dialArea').style.display = 'none';
         document.getElementById('blackjackArea').style.display = 'none';
         document.getElementById('slotArea').style.display = 'none';
+        document.getElementById('guessArea').style.display = 'none';
+        document.getElementById('tetrisArea').style.display = 'none';
     }
     // 炸金花演示
     let jinhuaState = {};
@@ -337,14 +398,90 @@ if (isset($_GET['action'])) {
         res.innerHTML = html;
         if(win) playAudio('audioWin');
     }
-    // 牌面渲染
-    function renderCard(card, anim) {
-        let [color,num] = card.split('-');
-        let colorMap = {1:'#388e3c',2:'#1976d2',3:'#d32f2f',4:'#fbc02d'};
-        let numMap = {11:'J',12:'Q',13:'K',14:'A'};
-        let showNum = numMap[num]||num;
-        return `<span style='display:inline-block;width:32px;height:44px;background:#fff;border-radius:6px;border:2px solid #888;margin:0 2px;box-shadow:0 2px 8px #0003;position:relative;' class='${anim?'card-anim':''}'><span style='color:${colorMap[color]||'#222'};font-weight:bold;font-size:1.2em;position:absolute;left:6px;top:4px;'>${showNum}</span></span>`;
+    // 猜数字小游戏
+    let guessNum, guessCount;
+    function loadGuess() {
+        guessNum = Math.floor(Math.random()*100)+1;
+        guessCount = 0;
+        let table = document.getElementById('guessTable');
+        table.innerHTML = `<div>我想了一个1~100的数字，你来猜！</div>
+        <input id='guessInput' type='number' min='1' max='100' style='width:60px;font-size:1.2em;margin:10px;'>
+        <button class='bet-btn' onclick='guessSubmit()'>猜</button>
+        <div id='guessResult' style='margin-top:10px;'></div>`;
     }
+    function guessSubmit() {
+        let val = parseInt(document.getElementById('guessInput').value);
+        guessCount++;
+        let res = document.getElementById('guessResult');
+        if(val === guessNum) {
+            playAudio('audioWin');
+            res.innerHTML = `<span class='bj-win'>恭喜你猜对了！共猜了${guessCount}次</span><br><button class='game-btn' onclick='loadGuess()'>再来一局</button>`;
+        } else if(val > guessNum) {
+            res.innerHTML = '太大了，再试试！';
+        } else if(val < guessNum) {
+            res.innerHTML = '太小了，再试试！';
+        } else {
+            res.innerHTML = '请输入有效数字！';
+        }
+    }
+    // 极简俄罗斯方块
+    let tetrisTimer, tetrisState;
+    function loadTetris() {
+        clearInterval(tetrisTimer);
+        tetrisState = {grid:Array(10).fill(0).map(()=>Array(6).fill(0)), row:0, col:2, over:false};
+        let table = document.getElementById('tetrisTable');
+        table.innerHTML = `<canvas id='tetrisCanvas' width='120' height='200' style='background:#222;border-radius:8px;box-shadow:0 2px 8px #0003;'></canvas>
+        <div style='margin:10px 0;'>
+            <button class='bet-btn' onclick='tetrisLeft()'>左</button>
+            <button class='bet-btn' onclick='tetrisDown()'>下</button>
+            <button class='bet-btn' onclick='tetrisRight()'>右</button>
+        </div>
+        <div id='tetrisMsg'></div>`;
+        tetrisDraw();
+        tetrisTimer = setInterval(tetrisDown, 700);
+    }
+    function tetrisDraw() {
+        let cvs = document.getElementById('tetrisCanvas');
+        let ctx = cvs.getContext('2d');
+        ctx.clearRect(0,0,120,200);
+        for(let r=0;r<10;r++) for(let c=0;c<6;c++) {
+            if(tetrisState.grid[r][c]) {
+                ctx.fillStyle = '#ffd600';
+                ctx.fillRect(c*20+2, r*20+2, 16, 16);
+            }
+        }
+        // 当前块
+        if(!tetrisState.over) {
+            ctx.fillStyle = '#43a047';
+            ctx.fillRect(tetrisState.col*20+2, tetrisState.row*20+2, 16, 16);
+        }
+    }
+    function tetrisDown() {
+        if(tetrisState.over) return;
+        if(tetrisState.row<9 && !tetrisState.grid[tetrisState.row+1][tetrisState.col]) {
+            tetrisState.row++;
+        } else {
+            tetrisState.grid[tetrisState.row][tetrisState.col]=1;
+            // 消行
+            for(let r=9;r>=0;r--) {
+                if(tetrisState.grid[r].every(x=>x)) {
+                    tetrisState.grid.splice(r,1);
+                    tetrisState.grid.unshift(Array(6).fill(0));
+                    playAudio('audioWin');
+                }
+            }
+            // 新块
+            tetrisState.row=0; tetrisState.col=2;
+            if(tetrisState.grid[0][2]) {
+                tetrisState.over=true;
+                clearInterval(tetrisTimer);
+                document.getElementById('tetrisMsg').innerHTML = `<span class='bj-bust'>游戏结束！</span><br><button class='game-btn' onclick='loadTetris()'>再来一局</button>`;
+            }
+        }
+        tetrisDraw();
+    }
+    function tetrisLeft() { if(tetrisState.over) return; if(tetrisState.col>0 && !tetrisState.grid[tetrisState.row][tetrisState.col-1]) tetrisState.col--; tetrisDraw(); }
+    function tetrisRight() { if(tetrisState.over) return; if(tetrisState.col<5 && !tetrisState.grid[tetrisState.row][tetrisState.col+1]) tetrisState.col++; tetrisDraw(); }
     </script>
 </body>
 </html>
