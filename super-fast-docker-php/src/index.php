@@ -84,7 +84,9 @@ function renderSlotMachine(d,spin){
   svg+=`<rect x='10' y='10' width='300' height='240' rx='32' fill='${t.body}' stroke='${t.border}' stroke-width='8'/>`;
   svg+=`<rect x='40' y='40' width='240' height='140' rx='18' fill='${t.panel}' stroke='${t.border}' stroke-width='4'/>`;
   for(let c=0;c<cols;c++)for(let r=0;r<rows;r++){
-    let x=ox+c*cellW,y=oy+r*cellH,sym=d.result&&d.result[r][c]?syms[d.result[r][c]%syms.length]:syms[0];
+    let x=ox+c*cellW,y=oy+r*cellH;
+    let symIdx = d.result && d.result[r] && typeof d.result[r][c]!=="undefined" ? d.result[r][c]%syms.length : 0;
+    let sym = syms[symIdx];
     svg+=`<rect x='${x}' y='${y}' width='${cellW}' height='${cellH}' rx='12' fill='#fff' stroke='${t.border}' stroke-width='2'/><text x='${x+cellW/2}' y='${y+cellH/2+12}' text-anchor='middle' font-size='36' font-weight='bold' fill='#333'>${sym}</text>`;
   }
   svg+=`<rect x='290' y='60' width='16' height='80' rx='8' fill='${t.lever}' stroke='#fff' stroke-width='2'/><circle cx='298' cy='60' r='12' fill='${t.lever}' stroke='#fff' stroke-width='2'/>`;
