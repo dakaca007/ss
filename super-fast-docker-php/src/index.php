@@ -1,5 +1,5 @@
 <?php
-// 入口文件，仅保留老虎机
+// 入口文件，仅保留并优化经典老虎机
 ?>
 <!DOCTYPE html>
 <html lang='zh-cn'>
@@ -11,13 +11,17 @@
         body { margin:0; padding:0; font-family:sans-serif; background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%); color:#fff; }
         .container { max-width:420px; margin:40px auto; padding:24px; background:rgba(0,0,0,0.85); border-radius:18px; box-shadow:0 8px 32px #0008; }
         h1 { font-size:2.2em; text-align:center; letter-spacing:2px; margin-bottom:18px; }
-        .game-btn-slot{background:linear-gradient(90deg,#ff7043,#ffd600);color:#fff;font-weight:bold;border-radius:8px;padding:10px 24px;margin:18px 0;box-shadow:0 2px 8px #ff704388;border:none;transition:.2s;display:block;width:100%;font-size:1.2em;}
-        .game-btn-slot:hover{background:#ffd600;color:#bf360c;transform:scale(1.05);}
+        .game-btn-slot{background:linear-gradient(90deg,#ff7043,#ffd600);color:#fff;font-weight:bold;border-radius:8px;padding:14px 0;margin:18px 0;box-shadow:0 2px 8px #ff704388;border:none;transition:.2s;display:block;width:100%;font-size:1.2em;}
+        .game-btn-slot:active{background:#ffd600;color:#bf360c;transform:scale(0.98);}
         #slotModal .modal-content{background:linear-gradient(135deg,#fffde7 60%,#ffe082 100%);box-shadow:0 0 24px #ff704388;border-radius:16px;}
         .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; overflow:auto; background-color:rgba(0,0,0,0.8); }
-        .modal-content { background-color:#222; margin:15% auto; padding:20px; border:1px solid #888; width:80%; max-width:400px; border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,0.2); }
+        .modal-content { background-color:#222; margin:10% auto; padding:20px; border:1px solid #888; width:92%; max-width:400px; border-radius:12px; box-shadow:0 4px 8px rgba(0,0,0,0.2); }
         .close { color:#aaa; float:right; font-size:28px; font-weight:bold; cursor:pointer; }
         .close:hover, .close:focus { color:#fff; text-decoration:none; cursor:pointer; }
+        @media (max-width: 600px) {
+            .container { margin:8px; padding:8px; }
+            .modal-content { width:98%; padding:10px; }
+        }
     </style>
 </head>
 <body>
@@ -25,34 +29,52 @@
         <h1>经典老虎机</h1>
         <button class="game-btn-slot" onclick="showSlot()">老虎机 <span style="font-size:18px;">🎰</span></button>
     </div>
-    <!-- 老虎机弹窗升级版 -->
-    <div id="slotModal" class="modal" style="display:none;">
+    <!-- 老虎机弹窗 -->
+    <div id="slotModal" class="modal">
       <div class="modal-content">
         <span class="close" onclick="closeSlot()">&times;</span>
-        <h2>经典老虎机 <span id="slotThemeBtn" style="cursor:pointer;">🎨</span></h2>
+        <h2 style="margin-bottom:10px;">经典老虎机 <span id="slotThemeBtn" style="cursor:pointer;">🎨</span></h2>
         <div id="slotMachine"></div>
-        <div id="slotStatus"></div>
-        <button id="slotLeverBtn" onclick="slotSpin()" style="font-size:20px;">拉杆</button>
-        <button onclick="closeSlot()">退出</button>
+        <div id="slotStatus" style="margin:10px 0 16px 0;"></div>
+        <button id="slotLeverBtn" onclick="slotSpin()" style="font-size:20px;width:100%;padding:12px 0;border-radius:10px;background:#ffd600;color:#bf360c;font-weight:bold;">拉杆</button>
+        <button onclick="closeSlot()" style="width:100%;margin-top:10px;">退出</button>
       </div>
     </div>
     <audio id="slotSpinAudio" src="https://cdn.pixabay.com/audio/2022/07/26/audio_124b7e7e7e.mp3" preload="auto"></audio>
     <audio id="slotWinAudio" src="https://cdn.pixabay.com/audio/2022/03/15/audio_115b9b3b3e.mp3" preload="auto"></audio>
     <script>
-let slotTheme=0,slotThemes=[
+// 老虎机主题与符号
+const slotThemes=[
   {body:'#ffd600',panel:'#fffde7',border:'#ff7043',lever:'#bf360c',win:'#ff1744',symbol:['🍒','🔔','🍋','7️⃣','⭐','🍀']},
   {body:'#fffde7',panel:'#ffd600',border:'#bf360c',lever:'#ff7043',win:'#43a047',symbol:['🍒','🍋','🔔','7️⃣','🍀','⭐']},
   {body:'#ffe082',panel:'#fff',border:'#ff7043',lever:'#ffd600',win:'#0ff',symbol:['🍋','🍒','7️⃣','🔔','⭐','🍀']}
 ];
-document.getElementById('slotThemeBtn').onclick=function(){slotTheme=(slotTheme+1)%slotThemes.length;renderSlotMachine(slotLastData)};
-function showSlot(){document.getElementById('slotModal').style.display='block';slotSpin();}
-function closeSlot(){document.getElementById('slotModal').style.display='none';}
+let slotTheme=0,slotLastData={};
+// 主题切换
+function bindSlotThemeBtn(){
+  document.getElementById('slotThemeBtn').onclick=function(){
+    slotTheme=(slotTheme+1)%slotThemes.length;
+    renderSlotMachine(slotLastData);
+  };
+}
+// 打开弹窗并自动拉一次
+function showSlot(){
+  document.getElementById('slotModal').style.display='block';
+  bindSlotThemeBtn();
+  slotSpin();
+}
+// 关闭弹窗
+function closeSlot(){
+  document.getElementById('slotModal').style.display='none';
+  document.getElementById('slotStatus').innerText='';
+}
+// 拉杆动画与请求
 function slotSpin(){
-  document.getElementById('slotLeverBtn').disabled=true;
+  setBtnDisabled('slotLeverBtn',true);
   fetch('src/api/Game.php?action=Slot',{headers:{'Authorization':localStorage.token}}).then(r=>r.json()).then(d=>{
     if(d.code===0){slotLastData=d;renderSlotMachine(d,true);}else alert(d.msg);});
 }
-let slotLastData={};
+// 渲染老虎机SVG
 function renderSlotMachine(d,spin){
   let t=slotThemes[slotTheme],syms=t.symbol;
   let rows=3,cols=3,cellW=60,cellH=60,ox=60,oy=60;
@@ -67,7 +89,7 @@ function renderSlotMachine(d,spin){
   svg+='</svg>';
   document.getElementById('slotMachine').innerHTML=svg;
   if(spin){
-    document.getElementById('slotSpinAudio').play();
+    playAudio('slotSpinAudio');
     let n=20,interval=60,step=0;
     let anim=setInterval(()=>{
       for(let c=0;c<cols;c++)for(let r=0;r<rows;r++){
@@ -81,13 +103,23 @@ function renderSlotMachine(d,spin){
       }
       if(++step>=n){
         clearInterval(anim);
-        setTimeout(()=>{renderSlotMachine(d,false);if(d.win){document.getElementById('slotWinAudio').play();document.getElementById('slotStatus').innerText='中奖!';}else{document.getElementById('slotStatus').innerText='未中奖';}document.getElementById('slotLeverBtn').disabled=false;},200);
+        setTimeout(()=>{renderSlotMachine(d,false);if(d.win){playAudio('slotWinAudio');setStatus('中奖!');}else{setStatus('未中奖');}setBtnDisabled('slotLeverBtn',false);},200);
       }
     },interval);
   }else{
-    document.getElementById('slotLeverBtn').disabled=false;
-    if(d.win){document.getElementById('slotWinAudio').play();document.getElementById('slotStatus').innerText='中奖!';}else{document.getElementById('slotStatus').innerText='未中奖';}
+    setBtnDisabled('slotLeverBtn',false);
+    if(d.win){playAudio('slotWinAudio');setStatus('中奖!');}else{setStatus('未中奖');}
   }
+}
+// 工具函数
+function setBtnDisabled(id, dis) {
+  let btn = document.getElementById(id); if(btn) btn.disabled = dis;
+}
+function playAudio(id) {
+  let a = document.getElementById(id); if(a) { a.currentTime=0; a.play(); }
+}
+function setStatus(msg) {
+  document.getElementById('slotStatus').innerText=msg;
 }
 </script>
 </body>
