@@ -71,7 +71,9 @@ function closeSlot(){
 // 拉杆动画与请求
 function slotSpin(){
   setBtnDisabled('slotLeverBtn',true);
-  fetch('src/api/Game.php?action=Slot',{headers:{'Authorization':localStorage.token}}).then(r=>r.json()).then(d=>{
+  let headers = {};
+  if(localStorage.token) headers['Authorization'] = localStorage.token;
+  fetch('src/api/Game.php?action=Slot',{headers}).then(r=>r.json()).then(d=>{
     if(d.code===0){slotLastData=d;renderSlotMachine(d,true);}else alert(d.msg);});
 }
 // 渲染老虎机SVG
