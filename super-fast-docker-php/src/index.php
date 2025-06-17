@@ -30,6 +30,12 @@ if (isset($_GET['action'])) {
         .game-desc { color:#ccc; font-size:0.98em; min-height:36px; }
         .game-area { display:none; margin-top:30px; }
         .back-btn { margin:18px 0 0 0; background:#ff9800; color:#fff; border:none; border-radius:8px; padding:10px 24px; font-size:1em; cursor:pointer; }
+        .bet-btn { margin:0 4px; background:#43a047; color:#fff; border:none; border-radius:6px; padding:7px 16px; font-size:1em; cursor:pointer; }
+        .bet-btn:disabled { background:#888; cursor:not-allowed; }
+        .winner { box-shadow:0 0 16px 4px #ffd600; border:2px solid #ffd600 !important; }
+        .dial-sector { transition:filter .3s; }
+        .dial-winner { filter:drop-shadow(0 0 12px #ffd600); }
+        .status-tip { color:#ffd600; font-size:1.1em; margin:10px 0; }
         @media (max-width: 600px) {
             .container { margin:8px; padding:8px; }
             .game-list { flex-direction:column; gap:18px; }
@@ -88,7 +94,9 @@ if (isset($_GET['action'])) {
         document.getElementById('dialArea').style.display = 'none';
     }
     // 炸金花演示
+    let jinhuaState = {};
     function loadJinhua() {
+        jinhuaState = {};
         let table = document.getElementById('jinhuaTable');
         table.innerHTML = `<button class='game-btn' onclick='jinhuaStart()'>开局发牌</button><div id='jinhuaResult' style='margin-top:18px;'></div>`;
     }
@@ -97,29 +105,49 @@ if (isset($_GET['action'])) {
         res.innerHTML = '发牌中...';
         fetch('?action=Jinhua&liveuid=1&stream=test&token=abc').then(r=>r.json()).then(data=>{
             if(data.code===0 && data.info[0].cards) {
+                jinhuaState = {gameid:data.info[0].gameid, bets:[0,0,0], cards:data.info[0].cards, betCount:0};
                 let html = '<div style="margin:10px 0;">';
                 data.info[0].cards.forEach((hand,i)=>{
-                    html += `<span style='display:inline-block;margin:0 8px;'>`+hand.map(card=>renderCard(card)).join(' ')+`</span>`;
+                    html += `<span id='jhand${i}' style='display:inline-block;margin:0 8px;'>`+hand.map(card=>renderCard(card)).join(' ')+`</span>`;
                 });
                 html += '</div>';
-                html += `<button class='game-btn' onclick='jinhuaBet("${data.info[0].gameid}")'>下注并结算</button>`;
+                html += `<div style='margin:10px 0;'>`;
+                for(let i=0;i<3;i++) {
+                    html += `<button class='bet-btn' onclick='jinhuaBet(${i+1})'>下注第${i+1}家</button>`;
+                }
+                html += `</div><div class='status-tip' id='jinhuaTip'>请选择下注位置，可多次下注</div>`;
+                html += `<button class='game-btn' onclick='jinhuaEnd()'>比牌结算</button>`;
                 res.innerHTML = html;
             } else {
                 res.innerHTML = '开局失败：'+data.msg;
             }
         });
     }
-    function jinhuaBet(gameid) {
+    function jinhuaBet(pos) {
+        let res = document.getElementById('jinhuaTip');
+        if(!jinhuaState.gameid) return;
+        fetch(`?action=JinhuaBet&uid=1&gameid=${jinhuaState.gameid}&token=abc&coin=100&grade=${pos}`).then(r=>r.json()).then(data=>{
+            jinhuaState.bets[pos-1] += 100;
+            res.innerHTML = `已下注：${jinhuaState.bets.map((b,i)=>`第${i+1}家${b}`).join(' | ')}`;
+        });
+    }
+    function jinhuaEnd() {
         let res = document.getElementById('jinhuaResult');
-        res.innerHTML = '下注中...';
-        fetch(`?action=JinhuaBet&uid=1&gameid=${gameid}&token=abc&coin=100&grade=1`).then(r=>r.json()).then(data=>{
-            fetch(`?action=endGame&liveuid=1&gameid=${gameid}&token=abc&type=1&ifset=0`).then(r=>r.json()).then(endData=>{
-                res.innerHTML = `<div>结算结果：<br>赢家位置：${(endData.info[0]&&endData.info[0].winner+1)||'-'}<br>牌面：<br>`+endData.info[0].cards.map((hand,i)=>hand.map(card=>renderCard(card)).join(' ')).join('<br>')+`</div>`;
+        if(!jinhuaState.gameid) return;
+        fetch(`?action=endGame&liveuid=1&gameid=${jinhuaState.gameid}&token=abc&type=1&ifset=0`).then(r=>r.json()).then(endData=>{
+            let winner = (endData.info[0]&&endData.info[0].winner)||0;
+            let html = `<div>结算结果：<br>赢家位置：<b style='color:#ffd600;'>${parseInt(winner)+1}</b><br>牌面：<br>`;
+            endData.info[0].cards.forEach((hand,i)=>{
+                html += `<span id='jhand${i}' class='${i==winner?'winner':''}' style='display:inline-block;margin:0 8px;'>`+hand.map(card=>renderCard(card)).join(' ')+`</span>`;
             });
+            html += `</div><button class='game-btn' onclick='loadJinhua()'>再来一局</button>`;
+            res.innerHTML = html;
         });
     }
     // 转盘演示
+    let dialState = {};
     function loadDial() {
+        dialState = {};
         let table = document.getElementById('dialTable');
         table.innerHTML = `<button class='game-btn' onclick='dialStart()'>开局下注</button><div id='dialResult' style='margin-top:18px;'></div>`;
     }
@@ -128,27 +156,47 @@ if (isset($_GET['action'])) {
         res.innerHTML = '下注中...';
         fetch('?action=Dial&liveuid=1&stream=test&token=abc').then(r=>r.json()).then(data=>{
             if(data.code===0 && data.info[0].gameid) {
-                let html = `<svg width='160' height='160' viewBox='0 0 160 160' style='margin:10px 0;'>`;
+                dialState = {gameid:data.info[0].gameid, bets:[0,0,0,0,0,0]};
+                let html = `<svg id='dialSVG' width='160' height='160' viewBox='0 0 160 160' style='margin:10px 0;'>`;
                 for(let i=0;i<6;i++) {
                     let angle = i*60;
-                    html += `<path d='M80,80 L${80+70*Math.cos((angle-30)*Math.PI/180)},${80+70*Math.sin((angle-30)*Math.PI/180)} A70,70 0 0,1 ${80+70*Math.cos((angle+30)*Math.PI/180)},${80+70*Math.sin((angle+30)*Math.PI/180)} Z' fill='${i%2==0?'#ffd600':'#ff9800'}' stroke='#fff' stroke-width='2'/>`;
+                    html += `<path id='dsector${i}' class='dial-sector' d='M80,80 L${80+70*Math.cos((angle-30)*Math.PI/180)},${80+70*Math.sin((angle-30)*Math.PI/180)} A70,70 0 0,1 ${80+70*Math.cos((angle+30)*Math.PI/180)},${80+70*Math.sin((angle+30)*Math.PI/180)} Z' fill='${i%2==0?'#ffd600':'#ff9800'}' stroke='#fff' stroke-width='2'/>`;
                 }
                 html += `<circle cx='80' cy='80' r='30' fill='#fff' stroke='#888' stroke-width='2'/></svg>`;
-                html += `<button class='game-btn' onclick='dialBet("${data.info[0].gameid}")'>下注并开奖</button>`;
+                html += `<div style='margin:10px 0;'>`;
+                for(let i=0;i<6;i++) {
+                    html += `<button class='bet-btn' onclick='dialBet(${i+1})'>下注区${i+1}</button>`;
+                }
+                html += `</div><div class='status-tip' id='dialTip'>请选择下注区，可多次下注</div>`;
+                html += `<button class='game-btn' onclick='dialEnd()'>开奖</button>`;
                 res.innerHTML = html;
             } else {
                 res.innerHTML = '开局失败：'+data.msg;
             }
         });
     }
-    function dialBet(gameid) {
+    function dialBet(pos) {
+        let res = document.getElementById('dialTip');
+        if(!dialState.gameid) return;
+        fetch(`?action=Dial_Bet&uid=1&gameid=${dialState.gameid}&token=abc&coin=50&grade=${pos}`).then(r=>r.json()).then(data=>{
+            dialState.bets[pos-1] += 50;
+            res.innerHTML = `已下注：${dialState.bets.map((b,i)=>`区${i+1}:${b}`).join(' | ')}`;
+        });
+    }
+    function dialEnd() {
         let res = document.getElementById('dialResult');
-        res.innerHTML = '开奖中...';
-        fetch(`?action=Dial_Bet&uid=1&gameid=${gameid}&token=abc&coin=50&grade=2`).then(r=>r.json()).then(data=>{
-            fetch(`?action=Dial_end&liveuid=1&gameid=${gameid}&token=abc&type=1&ifset=0`).then(r=>r.json()).then(endData=>{
-                let result = (endData.info[0]&&endData.info[0].result)||'-';
-                res.innerHTML = `<div>开奖结果：幸运区块 <b style='color:#ffd600;'>${parseInt(result)+1}</b></div>`;
-            });
+        if(!dialState.gameid) return;
+        fetch(`?action=Dial_end&liveuid=1&gameid=${dialState.gameid}&token=abc&type=1&ifset=0`).then(r=>r.json()).then(endData=>{
+            let result = (endData.info[0]&&endData.info[0].result)||0;
+            let html = `<svg id='dialSVG' width='160' height='160' viewBox='0 0 160 160' style='margin:10px 0;'>`;
+            for(let i=0;i<6;i++) {
+                let angle = i*60;
+                html += `<path id='dsector${i}' class='dial-sector${i==result?' dial-winner':''}' d='M80,80 L${80+70*Math.cos((angle-30)*Math.PI/180)},${80+70*Math.sin((angle-30)*Math.PI/180)} A70,70 0 0,1 ${80+70*Math.cos((angle+30)*Math.PI/180)},${80+70*Math.sin((angle+30)*Math.PI/180)} Z' fill='${i%2==0?'#ffd600':'#ff9800'}' stroke='#fff' stroke-width='2'/>`;
+            }
+            html += `<circle cx='80' cy='80' r='30' fill='#fff' stroke='#888' stroke-width='2'/></svg>`;
+            html += `<div>开奖结果：幸运区块 <b style='color:#ffd600;'>${parseInt(result)+1}</b></div>`;
+            html += `<button class='game-btn' onclick='loadDial()'>再来一局</button>`;
+            res.innerHTML = html;
         });
     }
     // 牌面渲染
